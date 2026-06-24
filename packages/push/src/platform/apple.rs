@@ -267,7 +267,8 @@ unsafe fn parse_user_info(_user_info: *mut AnyObject) -> HashMap<String, String>
 unsafe fn install_notification_delegate() {
     let delegate = PushDelegate::alloc();
     let delegate: Retained<PushDelegate> = msg_send![delegate, init];
-    let protocol = ProtocolObject::from_ref(&*delegate);
+    let protocol: &ProtocolObject<dyn UNUserNotificationCenterDelegate> =
+        ProtocolObject::from_ref(&*delegate);
     let center: *mut AnyObject =
         msg_send![class!(UNUserNotificationCenter), currentNotificationCenter];
     let _: () = msg_send![center, setDelegate: protocol];
