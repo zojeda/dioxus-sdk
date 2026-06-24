@@ -147,36 +147,42 @@ extern "C-unwind" fn did_fail(
 
 /// Add the registration callbacks to the running app delegate's class.
 unsafe fn install_token_observer() {
-    // Resolve the shared application's delegate and its class.
-    #[cfg(target_os = "ios")]
-    let app: *mut AnyObject = msg_send![class!(UIApplication), sharedApplication];
-    #[cfg(target_os = "macos")]
-    let app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
-    if app.is_null() {
-        return;
-    }
-    let delegate: *mut AnyObject = msg_send![app, delegate];
-    if delegate.is_null() {
-        return;
-    }
-    let class: *mut AnyClass = msg_send![delegate, class];
+    unsafe {
+        // Resolve the shared application's delegate and its class.
+        #[cfg(target_os = "ios")]
+        let app: *mut AnyObject = msg_send![class!(UIApplication), sharedApplication];
+        #[cfg(target_os = "macos")]
+        let app: *mut AnyObject = msg_send![class!(NSApplication), sharedApplication];
+        if app.is_null() {
+            return;
+        }
+        let delegate: *mut AnyObject = msg_send![app, delegate];
+        if delegate.is_null() {
+            return;
+        }
+        let class: *mut AnyClass = msg_send![delegate, class];
 
-    // `v@:@@` — void return; self, _cmd, application, (NSData|NSError).
-    let types = c"v@:@@".as_ptr();
-    type Trampoline =
-        extern "C-unwind" fn(*mut AnyObject, objc2::runtime::Sel, *mut AnyObject, *mut AnyObject);
-    objc2::ffi::class_addMethod(
-        class,
-        sel!(application:didRegisterForRemoteNotificationsWithDeviceToken:),
-        std::mem::transmute::<Trampoline, unsafe extern "C-unwind" fn()>(did_register),
-        types,
-    );
-    objc2::ffi::class_addMethod(
-        class,
-        sel!(application:didFailToRegisterForRemoteNotificationsWithError:),
-        std::mem::transmute::<Trampoline, unsafe extern "C-unwind" fn()>(did_fail),
-        types,
-    );
+        // `v@:@@` — void return; self, _cmd, application, (NSData|NSError).
+        let types = c"v@:@@".as_ptr();
+        type Trampoline = extern "C-unwind" fn(
+            *mut AnyObject,
+            objc2::runtime::Sel,
+            *mut AnyObject,
+            *mut AnyObject,
+        );
+        objc2::ffi::class_addMethod(
+            class,
+            sel!(application:didRegisterForRemoteNotificationsWithDeviceToken:),
+            std::mem::transmute::<Trampoline, unsafe extern "C-unwind" fn()>(did_register),
+            types,
+        );
+        objc2::ffi::class_addMethod(
+            class,
+            sel!(application:didFailToRegisterForRemoteNotificationsWithError:),
+            std::mem::transmute::<Trampoline, unsafe extern "C-unwind" fn()>(did_fail),
+            types,
+        );
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +204,7 @@ objc2::define_class!(
             notification: *mut AnyObject,
             completion: *mut block2::DynBlock<dyn Fn(usize)>,
         ) {
-            if let Some(message) = parse_notification(notification) {
+            if let Some(message) = unsafe { parse_notification(notification) } {
                 bridge::emit(PushEvent::MessageReceived(message));
             }
             if !completion.is_null() {
@@ -215,7 +221,7 @@ objc2::define_class!(
             completion: *mut block2::DynBlock<dyn Fn()>,
         ) {
             let notification: *mut AnyObject = unsafe { msg_send![response, notification] };
-            if let Some(message) = parse_notification(notification) {
+            if let Some(message) = unsafe { parse_notification(notification) } {
                 bridge::emit(PushEvent::NotificationTapped(NotificationResponse {
                     message,
                     action_id: None,
@@ -233,45 +239,49 @@ unsafe fn parse_notification(notification: *mut AnyObject) -> Option<RemoteMessa
     if notification.is_null() {
         return None;
     }
-    let request: *mut AnyObject = msg_send![notification, request];
-    let content: *mut AnyObject = msg_send![request, content];
-    if content.is_null() {
-        return None;
+    unsafe {
+        let request: *mut AnyObject = msg_send![notification, request];
+        let content: *mut AnyObject = msg_send![request, content];
+        if content.is_null() {
+            return None;
+        }
+
+        let title: Retained<objc2_foundation::NSString> = msg_send![content, title];
+        let body: Retained<objc2_foundation::NSString> = msg_send![content, body];
+        let title = title.to_string();
+        let body = body.to_string();
+
+        let user_info: *mut AnyObject = msg_send![content, userInfo];
+        let data = parse_user_info(user_info);
+
+        Some(RemoteMessage {
+            notification: Some(NotificationContent {
+                title: (!title.is_empty()).then_some(title),
+                body: (!body.is_empty()).then_some(body),
+            }),
+            data,
+            message_id: None,
+        })
     }
-
-    let title: Retained<objc2_foundation::NSString> = msg_send![content, title];
-    let body: Retained<objc2_foundation::NSString> = msg_send![content, body];
-    let title = title.to_string();
-    let body = body.to_string();
-
-    let user_info: *mut AnyObject = msg_send![content, userInfo];
-    let data = parse_user_info(user_info);
-
-    Some(RemoteMessage {
-        notification: Some(NotificationContent {
-            title: (!title.is_empty()).then_some(title),
-            body: (!body.is_empty()).then_some(body),
-        }),
-        data,
-        message_id: None,
-    })
 }
 
 /// Best-effort conversion of an `NSDictionary` of string keys/values into a map.
-unsafe fn parse_user_info(_user_info: *mut AnyObject) -> HashMap<String, String> {
+fn parse_user_info(_user_info: *mut AnyObject) -> HashMap<String, String> {
     // A full NSDictionary walk is omitted here; data payloads are surfaced via the
     // notification content. Custom-key extraction can be layered on as needed.
     HashMap::new()
 }
 
 unsafe fn install_notification_delegate() {
-    let delegate = PushDelegate::alloc();
-    let delegate: Retained<PushDelegate> = msg_send![delegate, init];
-    let protocol: &ProtocolObject<dyn UNUserNotificationCenterDelegate> =
-        ProtocolObject::from_ref(&*delegate);
-    let center: *mut AnyObject =
-        msg_send![class!(UNUserNotificationCenter), currentNotificationCenter];
-    let _: () = msg_send![center, setDelegate: protocol];
-    // Leak the delegate so it lives for the process lifetime.
-    let _ = Retained::into_raw(delegate);
+    unsafe {
+        let delegate = PushDelegate::alloc();
+        let delegate: Retained<PushDelegate> = msg_send![delegate, init];
+        let protocol: &ProtocolObject<dyn UNUserNotificationCenterDelegate> =
+            ProtocolObject::from_ref(&*delegate);
+        let center: *mut AnyObject =
+            msg_send![class!(UNUserNotificationCenter), currentNotificationCenter];
+        let _: () = msg_send![center, setDelegate: protocol];
+        // Leak the delegate so it lives for the process lifetime.
+        let _ = Retained::into_raw(delegate);
+    }
 }
