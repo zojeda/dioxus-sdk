@@ -18,6 +18,7 @@
 //! | [`dioxus-sdk-time`]           | Common timing utilities.              | `time`            |
 //! | [`dioxus-sdk-window`]         | Common window utilities.              | `window`          |
 //! | [`dioxus-sdk-notification`]   | Send notifications.                   | `notification`    |
+//! | [`dioxus-sdk-push`]           | Remote push notifications (FCM/APNs).  | `push`            |
 //! | [`dioxus-sdk-sync`]           | Synchronization primities for Dioxus. | `sync`            |
 //! | [`dioxus-sdk-util`]           | Misc utilities for Dioxus.            | `util`            |
 //!
@@ -26,6 +27,7 @@
 //! [`dioxus-sdk-time`]: https://crates.io/crates/dioxus-sdk-time
 //! [`dioxus-sdk-window`]: https://crates.io/crates/dioxus-sdk-window
 //! [`dioxus-sdk-notification`]: https://crates.io/crates/dioxus-sdk-notification
+//! [`dioxus-sdk-push`]: https://crates.io/crates/dioxus-sdk-push
 //! [`dioxus-sdk-sync`]: https://crates.io/crates/dioxus-sdk-sync
 //! [`dioxus-sdk-util`]: https://crates.io/crates/dioxus-sdk-util
 
@@ -34,6 +36,9 @@ pub use dioxus_sdk_geolocation as geolocation;
 
 #[cfg(feature = "notification")]
 pub use dioxus_sdk_notification as notification;
+
+#[cfg(feature = "push")]
+pub use dioxus_sdk_push as push;
 
 #[cfg(feature = "storage")]
 pub use dioxus_sdk_storage as storage;

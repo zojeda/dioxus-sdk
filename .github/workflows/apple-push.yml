@@ -1,0 +1,19 @@
+name: apple-push
+
+on:
+  push:
+    branches:
+      - "push-notifications"
+  workflow_dispatch:
+
+jobs:
+  apple:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add Apple targets
+        run: rustup target add aarch64-apple-darwin aarch64-apple-ios
+      - name: Build dioxus-sdk-push for macOS
+        run: cargo build -p dioxus-sdk-push --target aarch64-apple-darwin --verbose
+      - name: Check dioxus-sdk-push for iOS
+        run: cargo check -p dioxus-sdk-push --target aarch64-apple-ios --verbose

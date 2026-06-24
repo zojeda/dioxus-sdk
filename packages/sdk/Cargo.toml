@@ -16,6 +16,7 @@ repository.workspace = true
 [dependencies]
 dioxus-sdk-geolocation = { workspace = true, optional = true }
 dioxus-sdk-notification = { workspace = true, optional = true }
+dioxus-sdk-push = { workspace = true, optional = true }
 dioxus-sdk-storage = { workspace = true, optional = true }
 dioxus-sdk-sync = { workspace = true, optional = true }
 dioxus-sdk-time = { workspace = true, optional = true }
@@ -25,6 +26,10 @@ dioxus-sdk-window = { workspace = true, optional = true }
 [features]
 geolocation = ["dep:dioxus-sdk-geolocation"]
 notification = ["dep:dioxus-sdk-notification"]
+push = ["dep:dioxus-sdk-push"]
+push-client = ["push", "dioxus-sdk-push/client"]
+push-server = ["push", "dioxus-sdk-push/server"]
+push-redis = ["push-server", "dioxus-sdk-push/redis"]
 storage = ["dep:dioxus-sdk-storage"]
 sync = ["dep:dioxus-sdk-sync"]
 time = ["dep:dioxus-sdk-time"]

@@ -32,6 +32,10 @@
 - `dioxus-sdk-storage`
 - `dioxus-sdk-geolocation` - Web & Windows
 - `dioxus-sdk-notifications` - Desktop
+- `dioxus-sdk-push` - Remote push notifications
+  - [x] Client - Android (FCM), iOS/macOS (APNs), Web (Web Push), Windows/Linux (connection + local toast)
+  - [x] Server - FCM (HTTP v1), APNs (HTTP/2 JWT), Web Push (VAPID)
+  - [x] Fan-out hub with configurable backplane (in-memory & Redis)
 - `dioxus-sdk-window`
   - [x] Theme - (Web, Windows, Mac)
   - [x] Window Size
