@@ -18,7 +18,7 @@ use crate::platform::bridge;
 use block2::RcBlock;
 use objc2::rc::Retained;
 use objc2::runtime::{AnyClass, AnyObject, Bool, NSObject, NSObjectProtocol, ProtocolObject};
-use objc2::{class, msg_send, sel};
+use objc2::{AllocAnyThread, class, msg_send, sel};
 use objc2_foundation::{NSData, NSError};
 use objc2_user_notifications::UNUserNotificationCenterDelegate;
 use std::collections::HashMap;
@@ -108,7 +108,7 @@ unsafe fn token_to_hex(data: &NSData) -> String {
 
 /// Trampoline installed onto the app delegate for
 /// `application:didRegisterForRemoteNotificationsWithDeviceToken:`.
-extern "C" fn did_register(
+extern "C-unwind" fn did_register(
     _self: *mut AnyObject,
     _cmd: objc2::runtime::Sel,
     _application: *mut AnyObject,
@@ -128,7 +128,7 @@ extern "C" fn did_register(
 }
 
 /// Trampoline for `application:didFailToRegisterForRemoteNotificationsWithError:`.
-extern "C" fn did_fail(
+extern "C-unwind" fn did_fail(
     _self: *mut AnyObject,
     _cmd: objc2::runtime::Sel,
     _application: *mut AnyObject,
@@ -163,22 +163,18 @@ unsafe fn install_token_observer() {
 
     // `v@:@@` — void return; self, _cmd, application, (NSData|NSError).
     let types = c"v@:@@".as_ptr();
+    type Trampoline =
+        extern "C-unwind" fn(*mut AnyObject, objc2::runtime::Sel, *mut AnyObject, *mut AnyObject);
     objc2::ffi::class_addMethod(
         class,
         sel!(application:didRegisterForRemoteNotificationsWithDeviceToken:),
-        Some(std::mem::transmute::<
-            extern "C" fn(*mut AnyObject, objc2::runtime::Sel, *mut AnyObject, *mut AnyObject),
-            unsafe extern "C" fn(),
-        >(did_register)),
+        std::mem::transmute::<Trampoline, unsafe extern "C-unwind" fn()>(did_register),
         types,
     );
     objc2::ffi::class_addMethod(
         class,
         sel!(application:didFailToRegisterForRemoteNotificationsWithError:),
-        Some(std::mem::transmute::<
-            extern "C" fn(*mut AnyObject, objc2::runtime::Sel, *mut AnyObject, *mut AnyObject),
-            unsafe extern "C" fn(),
-        >(did_fail)),
+        std::mem::transmute::<Trampoline, unsafe extern "C-unwind" fn()>(did_fail),
         types,
     );
 }
