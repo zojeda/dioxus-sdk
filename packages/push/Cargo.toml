@@ -66,6 +66,11 @@ web-sys = { workspace = true, features = [
 jni = "0.21.1"
 ndk-context = "0.1.1"
 serde_json = "1.0"
+# The Kotlin bridge is driven through `dioxus::mobile::wry`'s JNI dispatcher.
+dioxus = { workspace = true, features = ["mobile"] }
+# Embeds Android plugin metadata (via `#[manganis::ffi]`) so `dx` >= 0.7.9
+# auto-bundles the `kotlin/` module into the generated Android project.
+manganis = "0.7.9"
 
 # ---- Apple (APNs) client: macOS + iOS shared ----
 [target.'cfg(any(target_os = "ios", target_os = "macos"))'.dependencies]

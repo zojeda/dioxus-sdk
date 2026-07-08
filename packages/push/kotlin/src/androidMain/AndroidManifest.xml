@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Library manifest for the dioxus-sdk-push Kotlin bridge.
+
+  Merged into the consuming app's manifest by the Android manifest merger, this
+  propagates both the POST_NOTIFICATIONS permission and the FCM service entry —
+  the app does not need to declare either.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <service
+            android:name="dev.dioxus.push.DioxusFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+    </application>
+
+</manifest>
